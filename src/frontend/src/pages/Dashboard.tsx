@@ -1,13 +1,31 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart2,
   DollarSign,
   Loader2,
   LogIn,
+  Plus,
   Shield,
   TrendingDown,
   TrendingUp,
@@ -15,6 +33,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { toast } from "sonner";
+import type { Trade } from "../backend";
 import { useBackendSafe } from "../hooks/useBackend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { computePortfolioSummary } from "../lib/portfolioUtils";
@@ -29,12 +49,25 @@ const CHART_COLORS = [
   "oklch(0.68 0.2 280)",
 ];
 
+const COIN_OPTIONS = [
+  { id: "bitcoin", name: "Bitcoin" },
+  { id: "ethereum", name: "Ethereum" },
+  { id: "solana", name: "Solana" },
+  { id: "binancecoin", name: "BNB" },
+  { id: "cardano", name: "Cardano" },
+  { id: "polkadot", name: "Polkadot" },
+  { id: "chainlink", name: "Chainlink" },
+  { id: "avalanche-2", name: "Avalanche" },
+];
+
 export default function Dashboard() {
   const backend = useBackendSafe();
+  const qc = useQueryClient();
   const { identity, login, isLoggingIn, isInitializing } =
     useInternetIdentity();
   const isLoggedIn = !!identity;
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const { data: trades = sampleTrades, isLoading: tradesLoading } = useQuery({
     queryKey: ["trades"],
@@ -54,6 +87,16 @@ export default function Dashboard() {
     enabled: !!backend && assetIds.length > 0,
     refetchInterval: 60000,
     staleTime: 30000,
+  });
+
+  const addTrade = useMutation({
+    mutationFn: (t: Trade) => backend!.createTrade(t),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trades"] });
+      toast.success("Transaction added successfully!");
+      setAddDialogOpen(false);
+    },
+    onError: () => toast.error("Failed to add transaction"),
   });
 
   const prices = useMemo(() => parsePrices(pricesJson), [pricesJson]);
@@ -83,11 +126,33 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto" data-ocid="dashboard.page">
-      <div>
-        <h2 className="text-2xl font-bold">Portfolio Overview</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Real-time tracking of your crypto holdings
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Portfolio Overview</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Real-time tracking of your crypto holdings
+          </p>
+        </div>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="gap-2"
+              data-ocid="dashboard.add_transaction.open_modal_button"
+            >
+              <Plus size={16} />
+              Add Transaction
+            </Button>
+          </DialogTrigger>
+          <DialogContent data-ocid="dashboard.add_transaction.dialog">
+            <DialogHeader>
+              <DialogTitle>Add Transaction</DialogTitle>
+            </DialogHeader>
+            <TransactionForm
+              onSubmit={(t) => addTrade.mutate(t)}
+              loading={addTrade.isPending}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Sign-in banner — shown when logged out and not dismissed */}
@@ -323,6 +388,127 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function TransactionForm({
+  onSubmit,
+  loading,
+}: { onSubmit: (t: Trade) => void; loading: boolean }) {
+  const [assetId, setAssetId] = useState("bitcoin");
+  const [assetName, setAssetName] = useState("Bitcoin");
+  const [datetime, setDatetime] = useState("");
+  const [price, setPrice] = useState("");
+  const [qty, setQty] = useState("");
+  const [type, setType] = useState("buy");
+  const [note, setNote] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      assetId,
+      assetName,
+      timestamp: new Date(datetime).getTime(),
+      priceUsd: Number.parseFloat(price),
+      quantity: Number.parseFloat(qty),
+      tradeType: type,
+      note,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Asset</Label>
+          <Select
+            value={assetId}
+            onValueChange={(v) => {
+              setAssetId(v);
+              setAssetName(COIN_OPTIONS.find((c) => c.id === v)?.name ?? v);
+            }}
+          >
+            <SelectTrigger data-ocid="dashboard.add_transaction.asset.select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COIN_OPTIONS.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label>Type</Label>
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger data-ocid="dashboard.add_transaction.type.select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="buy">Buy</SelectItem>
+              <SelectItem value="sell">Sell</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label>Date &amp; Time</Label>
+        <Input
+          type="datetime-local"
+          value={datetime}
+          onChange={(e) => setDatetime(e.target.value)}
+          required
+          data-ocid="dashboard.add_transaction.datetime.input"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Price (USD)</Label>
+          <Input
+            type="number"
+            step="any"
+            placeholder="0.00"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+            data-ocid="dashboard.add_transaction.price.input"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>Quantity</Label>
+          <Input
+            type="number"
+            step="any"
+            placeholder="0.0"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            required
+            data-ocid="dashboard.add_transaction.quantity.input"
+          />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label>Note (optional)</Label>
+        <Input
+          placeholder="e.g. DCA buy"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          data-ocid="dashboard.add_transaction.note.input"
+        />
+      </div>
+      <DialogFooter>
+        <Button
+          type="submit"
+          disabled={loading}
+          data-ocid="dashboard.add_transaction.submit_button"
+        >
+          {loading ? <Loader2 size={14} className="mr-2 animate-spin" /> : null}
+          Add Transaction
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
