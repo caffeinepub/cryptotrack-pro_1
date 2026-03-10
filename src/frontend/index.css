@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Outfit';
+  src: url('/assets/fonts/Outfit.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/assets/fonts/GeistMono.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    /* Light mode - clean white with teal accent */
+    --background: 0.98 0.005 220;
+    --foreground: 0.15 0.02 240;
+    --card: 1 0 0;
+    --card-foreground: 0.15 0.02 240;
+    --popover: 1 0 0;
+    --popover-foreground: 0.15 0.02 240;
+    --primary: 0.58 0.18 195;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.94 0.01 220;
+    --secondary-foreground: 0.25 0.03 240;
+    --muted: 0.94 0.01 220;
+    --muted-foreground: 0.5 0.02 240;
+    --accent: 0.58 0.18 195;
+    --accent-foreground: 0.98 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.88 0.01 220;
+    --input: 0.88 0.01 220;
+    --ring: 0.58 0.18 195;
+    --chart-1: 0.58 0.18 195;
+    --chart-2: 0.7 0.16 145;
+    --chart-3: 0.65 0.2 60;
+    --chart-4: 0.62 0.22 30;
+    --chart-5: 0.6 0.18 280;
+    --sidebar: 0.97 0.008 220;
+    --sidebar-foreground: 0.15 0.02 240;
+    --sidebar-primary: 0.58 0.18 195;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.93 0.015 210;
+    --sidebar-accent-foreground: 0.25 0.03 240;
+    --sidebar-border: 0.88 0.01 220;
+    --sidebar-ring: 0.58 0.18 195;
+  }
+
+  .dark {
+    /* Dark mode - deep navy with cyan accent */
+    --background: 0.12 0.018 240;
+    --foreground: 0.92 0.01 220;
+    --card: 0.16 0.02 240;
+    --card-foreground: 0.92 0.01 220;
+    --popover: 0.18 0.022 240;
+    --popover-foreground: 0.92 0.01 220;
+    --primary: 0.72 0.18 195;
+    --primary-foreground: 0.1 0.02 240;
+    --secondary: 0.22 0.025 240;
+    --secondary-foreground: 0.85 0.01 220;
+    --muted: 0.2 0.022 240;
+    --muted-foreground: 0.56 0.025 235;
+    --accent: 0.72 0.18 195;
+    --accent-foreground: 0.1 0.02 240;
+    --destructive: 0.65 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+    --border: 1 0 0 / 8%;
+    --input: 1 0 0 / 10%;
+    --ring: 0.72 0.18 195;
+    --chart-1: 0.72 0.18 195;
+    --chart-2: 0.75 0.17 145;
+    --chart-3: 0.78 0.2 70;
+    --chart-4: 0.7 0.22 35;
+    --chart-5: 0.68 0.2 280;
+    --sidebar: 0.14 0.02 240;
+    --sidebar-foreground: 0.92 0.01 220;
+    --sidebar-primary: 0.72 0.18 195;
+    --sidebar-primary-foreground: 0.1 0.02 240;
+    --sidebar-accent: 0.2 0.025 240;
+    --sidebar-accent-foreground: 0.85 0.01 220;
+    --sidebar-border: 1 0 0 / 8%;
+    --sidebar-ring: 0.72 0.18 195;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  code, pre, .mono {
+    font-family: 'Geist Mono', monospace;
+  }
+}
