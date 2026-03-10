@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import type { Page } from "../App";
 import { useTheme } from "../hooks/useTheme";
+import { SidebarAuthPanel } from "./SignInPrompt";
 
 const navItems: { path: Page; label: string; icon: React.ElementType }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -84,6 +85,7 @@ export default function Layout({
             {theme === "dark" ? "Light Mode" : "Dark Mode"}
           </Button>
         </div>
+        <SidebarAuthPanel />
       </aside>
 
       {/* Mobile overlay */}
@@ -128,6 +130,7 @@ export default function Layout({
             {theme === "dark" ? "Light Mode" : "Dark Mode"}
           </Button>
         </div>
+        <SidebarAuthPanel />
       </aside>
 
       {/* Main content */}

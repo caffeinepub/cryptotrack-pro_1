@@ -1,11 +1,22 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart2, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
-import { useMemo } from "react";
+import {
+  BarChart2,
+  DollarSign,
+  Loader2,
+  LogIn,
+  Shield,
+  TrendingDown,
+  TrendingUp,
+  X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useBackendSafe } from "../hooks/useBackend";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { computePortfolioSummary } from "../lib/portfolioUtils";
 import { formatPct, formatUsd, parsePrices } from "../lib/priceUtils";
 import { sampleTrades } from "../sampleData";
@@ -20,6 +31,10 @@ const CHART_COLORS = [
 
 export default function Dashboard() {
   const backend = useBackendSafe();
+  const { identity, login, isLoggingIn, isInitializing } =
+    useInternetIdentity();
+  const isLoggedIn = !!identity;
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const { data: trades = sampleTrades, isLoading: tradesLoading } = useQuery({
     queryKey: ["trades"],
@@ -74,6 +89,51 @@ export default function Dashboard() {
           Real-time tracking of your crypto holdings
         </p>
       </div>
+
+      {/* Sign-in banner — shown when logged out and not dismissed */}
+      {!isLoggedIn && !bannerDismissed && (
+        <div
+          className="relative flex items-start gap-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3.5"
+          data-ocid="dashboard.panel"
+        >
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+            <Shield size={16} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              Sync your portfolio securely
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Sign in with Internet Identity to save trades across devices. No
+              email or password needed — it&apos;s cryptographic authentication
+              built into the Internet Computer.
+            </p>
+            <Button
+              size="sm"
+              onClick={login}
+              disabled={isLoggingIn || isInitializing}
+              className="mt-3 gap-2 text-xs h-8"
+              data-ocid="dashboard.primary_button"
+            >
+              {isLoggingIn ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <LogIn size={13} />
+              )}
+              {isLoggingIn ? "Connecting..." : "Sign In with Internet Identity"}
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBannerDismissed(true)}
+            className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0"
+            aria-label="Dismiss"
+            data-ocid="dashboard.close_button"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       <div
         className="grid grid-cols-2 lg:grid-cols-4 gap-4"

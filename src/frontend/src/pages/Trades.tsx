@@ -21,11 +21,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Loader2, LogIn, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { RecurringBuyRule, Trade } from "../backend";
+import { SignInButton } from "../components/SignInPrompt";
 import { useBackendSafe } from "../hooks/useBackend";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { formatUsd } from "../lib/priceUtils";
 import { sampleRecurring, sampleTrades } from "../sampleData";
 
@@ -43,6 +45,8 @@ const COIN_OPTIONS = [
 export default function Trades() {
   const backend = useBackendSafe();
   const qc = useQueryClient();
+  const { identity } = useInternetIdentity();
+  const isLoggedIn = !!identity;
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
 
@@ -131,6 +135,30 @@ export default function Trades() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Sign-in notice */}
+      {!isLoggedIn && (
+        <div
+          className="flex items-center justify-between gap-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3"
+          data-ocid="trades.panel"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <LogIn size={15} className="text-amber-500 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                Trades won&apos;t be saved.
+              </span>{" "}
+              Sign in to persist your portfolio across sessions.
+            </p>
+          </div>
+          <SignInButton
+            variant="outline"
+            size="sm"
+            label="Sign In"
+            className="shrink-0"
+          />
+        </div>
+      )}
 
       <Card data-ocid="trades.table.card">
         <CardHeader className="pb-2">
