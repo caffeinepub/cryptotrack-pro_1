@@ -289,6 +289,15 @@ actor {
     await OutCall.httpGetRequest(url, [], transform);
   };
 
+  // Fetch a specific page of top coins (50 per page, pages 1-4 = top 200)
+  public shared ({ caller }) func fetchTopCoinsPage(page : Nat) : async Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can fetch top coins");
+    };
+    let url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=" # page.toText() # "&sparkline=false&price_change_percentage=24h,7d";
+    await OutCall.httpGetRequest(url, [], transform);
+  };
+
   public shared ({ caller }) func fetchCoinDetails(coinId : AssetId) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can fetch coin details");

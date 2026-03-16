@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart2,
+  ChevronDown,
   DollarSign,
   Loader2,
   LogIn,
@@ -31,14 +32,20 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
 import type { Trade } from "../backend";
 import { useBackendSafe } from "../hooks/useBackend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { computePortfolioSummary } from "../lib/portfolioUtils";
-import { formatPct, formatUsd, parsePrices } from "../lib/priceUtils";
+import {
+  type TopCoin,
+  formatPct,
+  formatUsd,
+  parsePrices,
+  parseTopCoins,
+} from "../lib/priceUtils";
 import { sampleTrades } from "../sampleData";
 
 const CHART_COLORS = [
@@ -49,15 +56,79 @@ const CHART_COLORS = [
   "oklch(0.68 0.2 280)",
 ];
 
-const COIN_OPTIONS = [
-  { id: "bitcoin", name: "Bitcoin" },
-  { id: "ethereum", name: "Ethereum" },
-  { id: "solana", name: "Solana" },
-  { id: "binancecoin", name: "BNB" },
-  { id: "cardano", name: "Cardano" },
-  { id: "polkadot", name: "Polkadot" },
-  { id: "chainlink", name: "Chainlink" },
-  { id: "avalanche-2", name: "Avalanche" },
+const FALLBACK_COINS: TopCoin[] = [
+  {
+    id: "bitcoin",
+    symbol: "btc",
+    name: "Bitcoin",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "ethereum",
+    symbol: "eth",
+    name: "Ethereum",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "solana",
+    symbol: "sol",
+    name: "Solana",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "binancecoin",
+    symbol: "bnb",
+    name: "BNB",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "cardano",
+    symbol: "ada",
+    name: "Cardano",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "polkadot",
+    symbol: "dot",
+    name: "Polkadot",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "chainlink",
+    symbol: "link",
+    name: "Chainlink",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "avalanche-2",
+    symbol: "avax",
+    name: "Avalanche",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
 ];
 
 export default function Dashboard() {
@@ -88,6 +159,18 @@ export default function Dashboard() {
     refetchInterval: 60000,
     staleTime: 30000,
   });
+
+  const { data: topCoinsJson } = useQuery({
+    queryKey: ["topCoins", 1],
+    queryFn: () => backend!.fetchTopCoins(),
+    enabled: !!backend,
+    staleTime: 120000,
+  });
+
+  const topCoins = useMemo(
+    () => (topCoinsJson ? parseTopCoins(topCoinsJson) : FALLBACK_COINS),
+    [topCoinsJson],
+  );
 
   const addTrade = useMutation({
     mutationFn: (t: Trade) => backend!.createTrade(t),
@@ -150,12 +233,12 @@ export default function Dashboard() {
             <TransactionForm
               onSubmit={(t) => addTrade.mutate(t)}
               loading={addTrade.isPending}
+              availableCoins={topCoins}
             />
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Sign-in banner — shown when logged out and not dismissed */}
       {!isLoggedIn && !bannerDismissed && (
         <div
           className="relative flex items-start gap-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3.5"
@@ -391,10 +474,106 @@ export default function Dashboard() {
   );
 }
 
+function CoinSelector({
+  value,
+  availableCoins,
+  onChange,
+}: {
+  value: string;
+  availableCoins: TopCoin[];
+  onChange: (id: string, name: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = availableCoins.find((c) => c.id === value);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return availableCoins.slice(0, 20);
+    const q = search.toLowerCase();
+    return availableCoins
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.symbol.toLowerCase().includes(q),
+      )
+      .slice(0, 20);
+  }, [availableCoins, search]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        data-ocid="dashboard.add_transaction.asset.select"
+        className="w-full flex items-center gap-2 rounded-md border border-input bg-background px-3 h-9 text-left hover:bg-accent/50 transition-colors"
+      >
+        <span className="flex-1 text-sm truncate">
+          {selected?.name ?? "Select coin"}
+          {selected && (
+            <span className="text-muted-foreground ml-1 text-xs uppercase">
+              {selected.symbol}
+            </span>
+          )}
+        </span>
+        <ChevronDown size={13} className="text-muted-foreground shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-md border border-border bg-popover shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <Input
+              autoFocus
+              placeholder="Search coin…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-7 text-xs"
+              data-ocid="dashboard.add_transaction.coin.search_input"
+            />
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="py-3 text-center text-xs text-muted-foreground">
+                No coins found
+              </div>
+            ) : (
+              filtered.map((coin) => (
+                <button
+                  key={coin.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(coin.id, coin.name);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent text-sm transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold uppercase shrink-0">
+                    {coin.symbol.slice(0, 2)}
+                  </span>
+                  <span className="font-medium truncate">{coin.name}</span>
+                  <span className="text-muted-foreground text-xs uppercase ml-auto">
+                    {coin.symbol}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TransactionForm({
   onSubmit,
   loading,
-}: { onSubmit: (t: Trade) => void; loading: boolean }) {
+  availableCoins,
+}: {
+  onSubmit: (t: Trade) => void;
+  loading: boolean;
+  availableCoins: TopCoin[];
+}) {
   const [assetId, setAssetId] = useState("bitcoin");
   const [assetName, setAssetName] = useState("Bitcoin");
   const [datetime, setDatetime] = useState("");
@@ -421,24 +600,14 @@ function TransactionForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Asset</Label>
-          <Select
+          <CoinSelector
             value={assetId}
-            onValueChange={(v) => {
-              setAssetId(v);
-              setAssetName(COIN_OPTIONS.find((c) => c.id === v)?.name ?? v);
+            availableCoins={availableCoins}
+            onChange={(id, name) => {
+              setAssetId(id);
+              setAssetName(name);
             }}
-          >
-            <SelectTrigger data-ocid="dashboard.add_transaction.asset.select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COIN_OPTIONS.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
         <div className="space-y-1">
           <Label>Type</Label>

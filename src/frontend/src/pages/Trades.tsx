@@ -2,6 +2,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -12,6 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -20,27 +32,211 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, LogIn, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronsUpDown,
+  Loader2,
+  LogIn,
+  Plus,
+  RefreshCcw,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { RecurringBuyRule, Trade } from "../backend";
 import { SignInButton } from "../components/SignInPrompt";
 import { useBackendSafe } from "../hooks/useBackend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { formatUsd } from "../lib/priceUtils";
+import { type TopCoin, formatUsd, parseTopCoins } from "../lib/priceUtils";
 import { sampleRecurring, sampleTrades } from "../sampleData";
 
-const COIN_OPTIONS = [
-  { id: "bitcoin", name: "Bitcoin" },
-  { id: "ethereum", name: "Ethereum" },
-  { id: "solana", name: "Solana" },
-  { id: "binancecoin", name: "BNB" },
-  { id: "cardano", name: "Cardano" },
-  { id: "polkadot", name: "Polkadot" },
-  { id: "chainlink", name: "Chainlink" },
-  { id: "avalanche-2", name: "Avalanche" },
+const FALLBACK_COINS: TopCoin[] = [
+  {
+    id: "bitcoin",
+    symbol: "BTC",
+    name: "Bitcoin",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "ethereum",
+    symbol: "ETH",
+    name: "Ethereum",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "solana",
+    symbol: "SOL",
+    name: "Solana",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "binancecoin",
+    symbol: "BNB",
+    name: "BNB",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "cardano",
+    symbol: "ADA",
+    name: "Cardano",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "polkadot",
+    symbol: "DOT",
+    name: "Polkadot",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "chainlink",
+    symbol: "LINK",
+    name: "Chainlink",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
+  {
+    id: "avalanche-2",
+    symbol: "AVAX",
+    name: "Avalanche",
+    current_price: 0,
+    price_change_percentage_24h: 0,
+    market_cap: 0,
+    total_volume: 0,
+  },
 ];
+
+const EXCHANGE_OPTIONS = [
+  "Self-managed",
+  "Kraken",
+  "Coinbase",
+  "Binance",
+  "Bybit",
+  "Crypto.com",
+  "KuCoin",
+  "OKX",
+  "Other",
+] as const;
+
+type Exchange = (typeof EXCHANGE_OPTIONS)[number];
+
+// Exchange badge color mapping
+const EXCHANGE_COLORS: Record<string, string> = {
+  Kraken: "bg-purple-500/15 text-purple-600 border-purple-500/30",
+  Coinbase: "bg-blue-500/15 text-blue-600 border-blue-500/30",
+  Binance: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30",
+  Bybit: "bg-orange-500/15 text-orange-600 border-orange-500/30",
+  "Crypto.com": "bg-cyan-500/15 text-cyan-600 border-cyan-500/30",
+  KuCoin: "bg-green-500/15 text-green-600 border-green-500/30",
+  OKX: "bg-slate-500/15 text-slate-600 border-slate-500/30",
+  Other: "bg-muted text-muted-foreground border-border",
+};
+
+// --- Searchable coin combobox ---
+function CoinCombobox({
+  coins,
+  selectedId,
+  onSelect,
+  "data-ocid": dataOcid,
+}: {
+  coins: TopCoin[];
+  selectedId: string;
+  onSelect: (id: string, name: string) => void;
+  "data-ocid"?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const list = coins.length > 0 ? coins : FALLBACK_COINS;
+  const selected = list.find((c) => c.id === selectedId);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+          data-ocid={dataOcid}
+        >
+          {selected
+            ? `${selected.symbol.toUpperCase()} — ${selected.name}`
+            : "Select asset..."}
+          <ChevronsUpDown size={14} className="ml-2 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search asset..." />
+          <CommandList className="max-h-60">
+            <CommandEmpty>No asset found.</CommandEmpty>
+            {list.map((c) => (
+              <CommandItem
+                key={c.id}
+                value={`${c.symbol} ${c.name} ${c.id}`}
+                onSelect={() => {
+                  onSelect(c.id, c.name);
+                  setOpen(false);
+                }}
+              >
+                <span className="font-medium">{c.symbol.toUpperCase()}</span>
+                <span className="ml-1 text-muted-foreground">— {c.name}</span>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// --- localStorage hook for exchange tracking ---
+function useRecurringExchanges() {
+  const [exchanges, setExchanges] = useState<Record<string, Exchange>>(() => {
+    try {
+      const raw = localStorage.getItem("recurringExchanges");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const setExchange = (assetId: string, exchange: Exchange) => {
+    setExchanges((prev) => {
+      const next = { ...prev, [assetId]: exchange };
+      localStorage.setItem("recurringExchanges", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  return { exchanges, setExchange };
+}
+
+// Format next buy date from today + intervalDays
+function formatNextBuyDate(intervalDays: bigint): string {
+  const next = new Date();
+  next.setDate(next.getDate() + Number(intervalDays));
+  return next.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 export default function Trades() {
   const backend = useBackendSafe();
@@ -49,6 +245,47 @@ export default function Trades() {
   const isLoggedIn = !!identity;
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
+  const [recurringFilter, setRecurringFilter] = useState<
+    "all" | "exchange" | "self"
+  >("all");
+  const { exchanges, setExchange } = useRecurringExchanges();
+
+  // Fetch top 200 coins (4 pages in parallel)
+  const coinQueries = [
+    useQuery({
+      queryKey: ["topCoins", 0],
+      queryFn: () =>
+        backend
+          ? (backend as any).fetchTopCoinsPage(BigInt(0)).then(parseTopCoins)
+          : Promise.resolve([]),
+      enabled: !!backend,
+    }),
+    useQuery({
+      queryKey: ["topCoins", 1],
+      queryFn: () =>
+        backend
+          ? (backend as any).fetchTopCoinsPage(BigInt(1)).then(parseTopCoins)
+          : Promise.resolve([]),
+      enabled: !!backend,
+    }),
+    useQuery({
+      queryKey: ["topCoins", 2],
+      queryFn: () =>
+        backend
+          ? (backend as any).fetchTopCoinsPage(BigInt(2)).then(parseTopCoins)
+          : Promise.resolve([]),
+      enabled: !!backend,
+    }),
+    useQuery({
+      queryKey: ["topCoins", 3],
+      queryFn: () =>
+        backend
+          ? (backend as any).fetchTopCoinsPage(BigInt(3)).then(parseTopCoins)
+          : Promise.resolve([]),
+      enabled: !!backend,
+    }),
+  ];
+  const allCoins: TopCoin[] = coinQueries.flatMap((q) => q.data ?? []);
 
   const { data: trades = sampleTrades, isLoading: tradesLoading } = useQuery({
     queryKey: ["trades"],
@@ -109,6 +346,14 @@ export default function Trades() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring"] }),
   });
 
+  // Filter recurring by exchange tab
+  const filteredRecurring = recurring.filter((r) => {
+    const ex = exchanges[r.assetId] ?? "Self-managed";
+    if (recurringFilter === "exchange") return ex !== "Self-managed";
+    if (recurringFilter === "self") return ex === "Self-managed";
+    return true;
+  });
+
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto" data-ocid="trades.page">
       <div className="flex items-center justify-between">
@@ -129,6 +374,7 @@ export default function Trades() {
               <DialogTitle>Add Trade</DialogTitle>
             </DialogHeader>
             <TradeForm
+              coins={allCoins}
               onSubmit={(t) => addTrade.mutate(t)}
               loading={addTrade.isPending}
             />
@@ -250,11 +496,13 @@ export default function Trades() {
         </CardContent>
       </Card>
 
+      {/* Recurring Buys Section */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Recurring Buys</h3>
           <p className="text-muted-foreground text-sm">
-            Dollar-cost averaging rules
+            Dollar-cost averaging rules — track self-managed and exchange-based
+            buys
           </p>
         </div>
         <Dialog
@@ -274,63 +522,131 @@ export default function Trades() {
               <DialogTitle>Add Recurring Buy</DialogTitle>
             </DialogHeader>
             <RecurringForm
-              onSubmit={(r) => addRecurring.mutate(r)}
+              coins={allCoins}
+              onSubmit={(r, exchange) => {
+                setExchange(r.assetId, exchange);
+                addRecurring.mutate(r);
+              }}
               loading={addRecurring.isPending}
             />
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Filter Tabs */}
+      <Tabs
+        value={recurringFilter}
+        onValueChange={(v) =>
+          setRecurringFilter(v as "all" | "exchange" | "self")
+        }
+      >
+        <TabsList data-ocid="recurring.filter.tab">
+          <TabsTrigger value="all">All ({recurring.length})</TabsTrigger>
+          <TabsTrigger value="exchange">
+            Exchange (
+            {
+              recurring.filter(
+                (r) =>
+                  (exchanges[r.assetId] ?? "Self-managed") !== "Self-managed",
+              ).length
+            }
+            )
+          </TabsTrigger>
+          <TabsTrigger value="self">
+            Self-managed (
+            {
+              recurring.filter(
+                (r) =>
+                  (exchanges[r.assetId] ?? "Self-managed") === "Self-managed",
+              ).length
+            }
+            )
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {recurringLoading ? (
           [1, 2].map((i) => <Skeleton key={i} className="h-28" />)
-        ) : recurring.length === 0 ? (
+        ) : filteredRecurring.length === 0 ? (
           <Card className="col-span-full">
             <CardContent
               className="py-8 text-center text-muted-foreground text-sm"
               data-ocid="recurring.empty_state"
             >
-              No recurring buys set up.
+              {recurringFilter === "all"
+                ? "No recurring buys set up."
+                : recurringFilter === "exchange"
+                  ? "No exchange-based recurring buys tracked yet."
+                  : "No self-managed recurring buys set up."}
             </CardContent>
           </Card>
         ) : (
-          recurring.map((r, i) => (
-            <Card key={r.assetId} data-ocid={`recurring.item.${i + 1}`}>
-              <CardContent className="pt-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-semibold">{r.assetName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      ${r.amountUsd} every {r.intervalDays.toString()} days
+          filteredRecurring.map((r, i) => {
+            const exchange = exchanges[r.assetId] ?? "Self-managed";
+            const exchangeColor = EXCHANGE_COLORS[exchange];
+            const showBadge = exchange !== "Self-managed";
+            const nextDate = formatNextBuyDate(r.intervalDays);
+
+            return (
+              <Card key={r.assetId} data-ocid={`recurring.item.${i + 1}`}>
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="font-semibold">{r.assetName}</div>
+                        {showBadge && (
+                          <Badge
+                            variant="outline"
+                            className={`text-xs font-medium ${exchangeColor}`}
+                            data-ocid={`recurring.exchange.badge.${i + 1}`}
+                          >
+                            {exchange}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        ${r.amountUsd} every {r.intervalDays.toString()} days
+                      </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteRecurring.mutate(r.assetId)}
+                      data-ocid={`recurring.delete_button.${i + 1}`}
+                    >
+                      <Trash2 size={14} className="text-destructive" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteRecurring.mutate(r.assetId)}
-                    data-ocid={`recurring.delete_button.${i + 1}`}
+
+                  {/* Next Buy Date */}
+                  <div
+                    className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground"
+                    data-ocid={`recurring.next_date.${i + 1}`}
                   >
-                    <Trash2 size={14} className="text-destructive" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2 mt-3">
-                  <Switch
-                    checked={r.enabled}
-                    onCheckedChange={(enabled) =>
-                      updateRecurring.mutate({
-                        assetId: r.assetId,
-                        rule: { ...r, enabled },
-                      })
-                    }
-                    data-ocid={`recurring.switch.${i + 1}`}
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {r.enabled ? "Active" : "Paused"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                    <CalendarClock size={12} />
+                    <span>Next: {nextDate}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-3">
+                    <Switch
+                      checked={r.enabled}
+                      onCheckedChange={(enabled) =>
+                        updateRecurring.mutate({
+                          assetId: r.assetId,
+                          rule: { ...r, enabled },
+                        })
+                      }
+                      data-ocid={`recurring.switch.${i + 1}`}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {r.enabled ? "Active" : "Paused"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>
@@ -338,9 +654,10 @@ export default function Trades() {
 }
 
 function TradeForm({
+  coins,
   onSubmit,
   loading,
-}: { onSubmit: (t: Trade) => void; loading: boolean }) {
+}: { coins: TopCoin[]; onSubmit: (t: Trade) => void; loading: boolean }) {
   const [assetId, setAssetId] = useState("bitcoin");
   const [assetName, setAssetName] = useState("Bitcoin");
   const [datetime, setDatetime] = useState("");
@@ -367,24 +684,15 @@ function TradeForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Asset</Label>
-          <Select
-            value={assetId}
-            onValueChange={(v) => {
-              setAssetId(v);
-              setAssetName(COIN_OPTIONS.find((c) => c.id === v)?.name ?? v);
+          <CoinCombobox
+            coins={coins}
+            selectedId={assetId}
+            onSelect={(id, name) => {
+              setAssetId(id);
+              setAssetName(name);
             }}
-          >
-            <SelectTrigger data-ocid="trade.asset.select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COIN_OPTIONS.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            data-ocid="trade.asset.select"
+          />
         </div>
         <div className="space-y-1">
           <Label>Type</Label>
@@ -459,47 +767,47 @@ function TradeForm({
 }
 
 function RecurringForm({
+  coins,
   onSubmit,
   loading,
-}: { onSubmit: (r: RecurringBuyRule) => void; loading: boolean }) {
+}: {
+  coins: TopCoin[];
+  onSubmit: (r: RecurringBuyRule, exchange: Exchange) => void;
+  loading: boolean;
+}) {
   const [assetId, setAssetId] = useState("bitcoin");
   const [assetName, setAssetName] = useState("Bitcoin");
   const [interval, setIntervalDays] = useState("7");
   const [amount, setAmount] = useState("");
+  const [exchange, setExchangeLocal] = useState<Exchange>("Self-managed");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      assetId,
-      assetName,
-      intervalDays: BigInt(interval),
-      amountUsd: Number.parseFloat(amount),
-      enabled: true,
-    });
+    onSubmit(
+      {
+        assetId,
+        assetName,
+        intervalDays: BigInt(interval),
+        amountUsd: Number.parseFloat(amount),
+        enabled: true,
+      },
+      exchange,
+    );
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1">
         <Label>Asset</Label>
-        <Select
-          value={assetId}
-          onValueChange={(v) => {
-            setAssetId(v);
-            setAssetName(COIN_OPTIONS.find((c) => c.id === v)?.name ?? v);
+        <CoinCombobox
+          coins={coins}
+          selectedId={assetId}
+          onSelect={(id, name) => {
+            setAssetId(id);
+            setAssetName(name);
           }}
-        >
-          <SelectTrigger data-ocid="recurring.asset.select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {COIN_OPTIONS.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          data-ocid="recurring.asset.select"
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
@@ -526,6 +834,28 @@ function RecurringForm({
             data-ocid="recurring.interval.input"
           />
         </div>
+      </div>
+      <div className="space-y-1">
+        <Label>Exchange</Label>
+        <p className="text-xs text-muted-foreground">
+          Track where this recurring buy is executed (e.g. Kraken, Coinbase,
+          Binance)
+        </p>
+        <Select
+          value={exchange}
+          onValueChange={(v) => setExchangeLocal(v as Exchange)}
+        >
+          <SelectTrigger data-ocid="recurring.exchange.select">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EXCHANGE_OPTIONS.map((ex) => (
+              <SelectItem key={ex} value={ex}>
+                {ex}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <DialogFooter>
         <Button

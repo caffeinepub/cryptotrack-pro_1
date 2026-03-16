@@ -5,15 +5,24 @@ import Bot from "./pages/Bot";
 import Compare from "./pages/Compare";
 import Dashboard from "./pages/Dashboard";
 import Health from "./pages/Health";
+import Markets from "./pages/Markets";
 import Trades from "./pages/Trades";
 
-export type Page = "/" | "/trades" | "/compare" | "/health" | "/bot";
+export type Page =
+  | "/"
+  | "/trades"
+  | "/compare"
+  | "/health"
+  | "/bot"
+  | "/markets";
 
 export default function App() {
   const [page, setPage] = useState<Page>(() => {
     const hash = window.location.hash.replace("#", "") as Page;
     return (
-      ["/trades", "/compare", "/health", "/bot"].includes(hash) ? hash : "/"
+      ["/trades", "/compare", "/health", "/bot", "/markets"].includes(hash)
+        ? hash
+        : "/"
     ) as Page;
   });
 
@@ -21,7 +30,9 @@ export default function App() {
     const onHashChange = () => {
       const hash = window.location.hash.replace("#", "") as Page;
       setPage(
-        ["/trades", "/compare", "/health", "/bot"].includes(hash) ? hash : "/",
+        ["/trades", "/compare", "/health", "/bot", "/markets"].includes(hash)
+          ? hash
+          : "/",
       );
     };
     window.addEventListener("hashchange", onHashChange);
@@ -43,6 +54,8 @@ export default function App() {
         return <Health />;
       case "/bot":
         return <Bot />;
+      case "/markets":
+        return <Markets />;
       default:
         return <Dashboard />;
     }

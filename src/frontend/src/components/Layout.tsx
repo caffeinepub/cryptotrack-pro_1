@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import {
   Activity,
   ArrowLeftRight,
+  BarChart2,
   Bot,
   LayoutDashboard,
   Menu,
@@ -20,6 +21,7 @@ const navItems: { path: Page; label: string; icon: React.ElementType }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/trades", label: "Trades", icon: TrendingUp },
   { path: "/compare", label: "Compare", icon: ArrowLeftRight },
+  { path: "/markets", label: "Markets", icon: BarChart2 },
   { path: "/health", label: "Project Health", icon: Activity },
   { path: "/bot", label: "Bot", icon: Bot },
 ];
