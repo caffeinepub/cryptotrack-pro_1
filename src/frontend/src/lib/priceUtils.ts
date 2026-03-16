@@ -37,14 +37,18 @@ export function parseTopCoins(json: string): TopCoin[] {
 export interface HistoryPoint {
   timestamp: number;
   price: number;
+  volume: number;
 }
 
 export function parseCoinHistory(json: string): HistoryPoint[] {
   try {
     const data = JSON.parse(json);
-    return (data.prices as [number, number][]).map(([ts, p]) => ({
+    const prices = data.prices as [number, number][];
+    const totalVolumes: [number, number][] = data.total_volumes ?? [];
+    return prices.map(([ts, p], i) => ({
       timestamp: ts,
       price: p,
+      volume: totalVolumes[i]?.[1] ?? 0,
     }));
   } catch {
     return [];

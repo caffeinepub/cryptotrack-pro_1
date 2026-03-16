@@ -1,42 +1,35 @@
-# CryptoTrack Pro
+# Genesis Trading Bot
 
 ## Current State
-New project. No existing code.
+- Bot page uses `parseCoinHistory` which only parses `prices` from CoinGecko history JSON
+- Volume data in `botUtils.ts` is synthesized from price deltas with random noise, not real volume
+- `assessBreakout` and `detectVolumeSpike` use fake volume arrays
+- Theme uses fixed neon magenta and cyan colors throughout
 
 ## Requested Changes (Diff)
 
 ### Add
-- Portfolio dashboard with real-time price tracking via HTTP outcalls (CoinGecko API)
-- Manual trade entry: asset, date/time, price paid, quantity, buy type (one-time or recurring)
-- Recurring buy scheduler: track DCA (dollar-cost averaging) strategies with interval settings
-- Portfolio overview: total value, P&L, allocation pie chart, average buy-in prices per asset
-- Market structure charts: price history with buy markers overlaid
-- Asset comparison tool: side-by-side metrics for multiple coins
-- Project health analyzer: fetches on-chain activity metrics (volume, dev activity, community) to rate "active" vs "dead" projects
-- Trading bot assistant: rule-based signal engine that detects dip conditions, RSI-style scoring, and recommends buy/sell signals (no actual trade execution)
-- Dark / light theme toggle
-- Sample data on first load for newcomers
+- Real volume parsing in `parseCoinHistory` — extract `total_volumes` array from CoinGecko response alongside prices
+- Volume OBV (On-Balance Volume) trend metric to `MicroAnalysis`
+- Volume ratio (current vs 30-period average) displayed in micro analysis panel
+- Soft RGB neon strobe CSS animation cycling red → green → blue neon
+- `rgb-strobe` CSS utility class and keyframe animation in index.css
 
 ### Modify
-N/A
+- `HistoryPoint` interface: add `volume: number` field
+- `assessBreakout`: use real `history[i].volume` instead of synthetic volumes
+- `computeSignal`: pass real volumes from history to all volume functions
+- `detectVolumeSpike`: use real volumes
+- Bot.tsx neon accent colors: apply strobe animation to borders, headers, badges
+- Volume spike badge: show real multiplier from actual volume data
+- Micro analysis: add OBV trend and volume ratio display
 
 ### Remove
-N/A
+- Random/synthetic volume generation in botUtils.ts
 
 ## Implementation Plan
-1. Backend (Motoko)
-   - Data models: Portfolio, Trade (assetId, timestamp, priceUsd, quantity, type), RecurringBuy, BotSettings
-   - CRUD for trades and recurring buys
-   - HTTP outcalls to CoinGecko for live prices, market data, and coin metadata
-   - Bot signal logic: fetch OHLCV-style data, compute simple dip/RSI signals, return recommendations
-   - Project health scorer: fetch developer activity, volume trends, community size from CoinGecko
-
-2. Frontend
-   - Layout: sidebar nav, main content area, theme toggle
-   - Pages: Dashboard, Trades, Compare, Project Health, Bot
-   - Dashboard: portfolio value card, P&L card, allocation pie chart (Recharts), asset list with avg buy-in
-   - Trades page: add/edit/delete trades form, trades table, recurring buy management
-   - Compare page: multi-asset selector, side-by-side price + volume + market cap cards
-   - Project Health page: coin search, health score card, activity/volume charts
-   - Bot page: configure dip threshold and strategy, view current signals, enable/disable alerts
-   - Theme: OKLCH-based design tokens, dark/light switcher persisted in localStorage
+1. Update `HistoryPoint` + `parseCoinHistory` in priceUtils.ts to include volume
+2. Update botUtils.ts to use real volume from history; add OBV calc; remove synthetic volume
+3. Update MicroAnalysis interface to add `obvTrend` and `volumeRatio`
+4. Add RGB strobe keyframe + utility classes in index.css
+5. Update Bot.tsx to apply strobe classes and show new volume metrics

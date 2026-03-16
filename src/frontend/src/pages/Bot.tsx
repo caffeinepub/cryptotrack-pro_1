@@ -1,5 +1,4 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -8,18 +7,27 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   Bot as BotIcon,
+  Flame,
   Loader2,
   Minus,
+  Monitor,
   Settings,
   TrendingDown,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -28,7 +36,11 @@ import {
 import { toast } from "sonner";
 import type { BotSettings } from "../backend";
 import { useBackendSafe } from "../hooks/useBackend";
-import { type BotSignal, computeSignal } from "../lib/botUtils";
+import {
+  type BotSignal,
+  type EnrichedSignalResult,
+  computeSignal,
+} from "../lib/botUtils";
 import { parseCoinHistory } from "../lib/priceUtils";
 
 const DEFAULT_SETTINGS: BotSettings = {
@@ -36,6 +48,13 @@ const DEFAULT_SETTINGS: BotSettings = {
   dipThresholdPercent: 5,
   targetAssets: ["bitcoin", "ethereum"],
 };
+
+const NEON_MAGENTA = "oklch(0.72 0.3 340)";
+const NEON_CYAN = "oklch(0.75 0.24 195)";
+const NEON_PURPLE = "oklch(0.68 0.28 280)";
+const NEON_RED = "oklch(0.65 0.22 25)";
+const NEON_GREEN = "oklch(0.72 0.2 145)";
+const NEON_YELLOW = "oklch(0.82 0.22 60)";
 
 export default function Bot() {
   const backend = useBackendSafe();
@@ -64,28 +83,45 @@ export default function Bot() {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto" data-ocid="bot.page">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <BotIcon size={24} className="text-primary" />
+        <div
+          className="p-2 rounded rgb-strobe-border"
+          style={{
+            background: `${NEON_MAGENTA}22`,
+          }}
+        >
+          <BotIcon size={22} className="rgb-strobe-text" />
+        </div>
         <div>
-          <h2 className="text-2xl font-bold">Trading Bot</h2>
-          <p className="text-muted-foreground text-sm mt-0.5">
+          <h2 className="text-2xl font-bold uppercase tracking-widest rgb-strobe-text">
+            Genesis Trading Bot
+          </h2>
+          <p className="text-muted-foreground text-xs tracking-wider uppercase mt-0.5">
             Signal-based market analysis assistant
           </p>
         </div>
       </div>
 
-      <Alert data-ocid="bot.disclaimer">
-        <AlertTriangle size={16} />
-        <AlertDescription className="text-sm">
+      <Alert
+        data-ocid="bot.disclaimer"
+        style={{
+          borderColor: `${NEON_MAGENTA}40`,
+          background: `${NEON_MAGENTA}08`,
+        }}
+      >
+        <AlertTriangle size={14} style={{ color: NEON_MAGENTA }} />
+        <AlertDescription className="text-xs text-muted-foreground">
           This bot provides informational signals only. Not financial advice.
           Always do your own research before trading.
         </AlertDescription>
       </Alert>
 
-      <Card data-ocid="bot.settings.card">
+      {/* Settings Card */}
+      <Card data-ocid="bot.settings.card" className="border rgb-strobe-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Settings size={14} /> Bot Configuration
+          <CardTitle className="text-xs font-medium flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
+            <Settings size={12} /> Bot Configuration
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -107,7 +143,10 @@ export default function Bot() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Dip Threshold</Label>
-              <span className="text-sm font-semibold text-primary">
+              <span
+                className="text-sm font-bold font-mono"
+                style={{ color: NEON_CYAN }}
+              >
                 {effective.dipThresholdPercent}%
               </span>
             </div>
@@ -130,6 +169,7 @@ export default function Bot() {
               onClick={() => saveSettings.mutate(effective)}
               disabled={saveSettings.isPending}
               data-ocid="bot.settings.save_button"
+              className="neon-glow-primary"
             >
               {saveSettings.isPending ? (
                 <Loader2 size={14} className="mr-2 animate-spin" />
@@ -140,14 +180,41 @@ export default function Bot() {
         </CardContent>
       </Card>
 
+      {/* Active Signals */}
       <div>
-        <h3 className="text-base font-semibold mb-3">Active Signals</h3>
+        <h3 className="text-xs font-semibold mb-4 uppercase tracking-widest rgb-strobe-text">
+          ⬡ Active Signals
+        </h3>
         <div className="grid sm:grid-cols-2 gap-4">
           {effective.targetAssets.map((assetId, i) => (
             <SignalCard key={assetId} assetId={assetId} index={i + 1} />
           ))}
         </div>
       </div>
+
+      {/* Analysis Dashboard Divider */}
+      <div className="flex items-center gap-4 py-2">
+        <div
+          className="flex-1 h-px"
+          style={{
+            background: `linear-gradient(to right, transparent, ${NEON_MAGENTA}60, transparent)`,
+          }}
+        />
+        <span className="text-xs uppercase tracking-widest font-bold rgb-strobe-text">
+          ⚡ Analysis Dashboard
+        </span>
+        <div
+          className="flex-1 h-px"
+          style={{
+            background: `linear-gradient(to left, transparent, ${NEON_MAGENTA}60, transparent)`,
+          }}
+        />
+      </div>
+
+      {/* Analysis Panels rendered per asset */}
+      {effective.targetAssets.map((assetId, i) => (
+        <AssetAnalysisPanels key={assetId} assetId={assetId} index={i + 1} />
+      ))}
     </div>
   );
 }
@@ -171,28 +238,39 @@ function SignalCard({ assetId, index }: { assetId: string; index: number }) {
 
   const signalConfig: Record<
     BotSignal,
-    {
-      label: string;
-      icon: React.ReactNode;
-      variant: "default" | "destructive" | "secondary";
-    }
+    { label: string; icon: React.ReactNode; color: string }
   > = {
     BUY_DIP: {
       label: "BUY DIP",
-      icon: <TrendingUp size={16} />,
-      variant: "default",
+      icon: <TrendingUp size={13} />,
+      color: "oklch(0.75 0.24 195)",
     },
     SELL: {
       label: "SELL",
-      icon: <TrendingDown size={16} />,
-      variant: "destructive",
+      icon: <TrendingDown size={13} />,
+      color: "oklch(0.65 0.22 25)",
     },
-    HOLD: { label: "HOLD", icon: <Minus size={16} />, variant: "secondary" },
+    HOLD: {
+      label: "HOLD",
+      icon: <Minus size={13} />,
+      color: "oklch(0.68 0.28 280)",
+    },
   };
   const cfg = signalConfig[signal.signal];
 
+  const breakoutConfig = {
+    BREAKOUT: { color: "oklch(0.75 0.24 195)", label: "BREAKOUT" },
+    FAKEOUT: { color: "oklch(0.65 0.22 25)", label: "FAKEOUT" },
+    NEUTRAL: { color: "oklch(0.52 0.03 280)", label: "NEUTRAL" },
+  };
+  const bCfg = breakoutConfig[signal.breakout.type];
+
   return (
-    <Card data-ocid={`bot.signal.card.${index}`}>
+    <Card
+      data-ocid={`bot.signal.card.${index}`}
+      className="border rgb-strobe-border"
+      style={{ background: "oklch(0.09 0.015 280 / 0.8)" }}
+    >
       <CardContent className="pt-4">
         {isLoading ? (
           <Skeleton
@@ -200,27 +278,39 @@ function SignalCard({ assetId, index }: { assetId: string; index: number }) {
             data-ocid={`bot.signal.loading_state.${index}`}
           />
         ) : (
-          <div>
-            <div className="flex items-center justify-between mb-3">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="font-semibold capitalize">{assetId}</div>
+                <div className="font-bold uppercase tracking-wider text-sm rgb-strobe-text">
+                  {assetId}
+                </div>
                 {currentPrice && (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm font-mono text-muted-foreground">
                     ${currentPrice.toLocaleString()}
                   </div>
                 )}
               </div>
-              <div className="text-right">
-                <Badge variant={cfg.variant} className="gap-1">
+              <div className="text-right space-y-1">
+                <div
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold font-mono uppercase tracking-wider"
+                  style={{
+                    color: cfg.color,
+                    background: `${cfg.color}22`,
+                    border: `1px solid ${cfg.color}55`,
+                    textShadow: `0 0 8px ${cfg.color}`,
+                  }}
+                >
                   {cfg.icon} {cfg.label}
-                </Badge>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {signal.confidence}% confidence
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {signal.confidence}% conf
                 </div>
               </div>
             </div>
+
+            {/* Spark chart */}
             {sparkData.length > 0 && (
-              <ResponsiveContainer width="100%" height={60}>
+              <ResponsiveContainer width="100%" height={55}>
                 <AreaChart data={sparkData}>
                   <defs>
                     <linearGradient
@@ -232,12 +322,12 @@ function SignalCard({ assetId, index }: { assetId: string; index: number }) {
                     >
                       <stop
                         offset="5%"
-                        stopColor="oklch(0.72 0.18 195)"
-                        stopOpacity={0.3}
+                        stopColor="oklch(0.75 0.24 195)"
+                        stopOpacity={0.35}
                       />
                       <stop
                         offset="95%"
-                        stopColor="oklch(0.72 0.18 195)"
+                        stopColor="oklch(0.75 0.24 195)"
                         stopOpacity={0}
                       />
                     </linearGradient>
@@ -245,7 +335,7 @@ function SignalCard({ assetId, index }: { assetId: string; index: number }) {
                   <Area
                     type="monotone"
                     dataKey="price"
-                    stroke="oklch(0.72 0.18 195)"
+                    stroke="oklch(0.75 0.24 195)"
                     fill={`url(#grad-${assetId})`}
                     dot={false}
                     strokeWidth={1.5}
@@ -255,16 +345,485 @@ function SignalCard({ assetId, index }: { assetId: string; index: number }) {
                   <Tooltip
                     formatter={(v: number) => `$${v.toLocaleString()}`}
                     labelFormatter={() => ""}
+                    contentStyle={{
+                      background: "oklch(0.09 0.015 280)",
+                      border: "1px solid oklch(0.75 0.24 195 / 0.55)",
+                      fontSize: "11px",
+                      fontFamily: "Geist Mono, monospace",
+                    }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             )}
-            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+
+            {/* Breakout / Fakeout badge */}
+            <div
+              className="flex items-center gap-2 p-2 rounded"
+              style={{
+                background: `${bCfg.color}11`,
+                border: `1px solid ${bCfg.color}33`,
+              }}
+              data-ocid={`bot.breakout.badge.${index}`}
+            >
+              <span
+                className="text-xs font-bold font-mono uppercase tracking-wider px-2 py-0.5 rounded"
+                style={{
+                  color: bCfg.color,
+                  background: `${bCfg.color}22`,
+                  textShadow: `0 0 6px ${bCfg.color}`,
+                }}
+              >
+                {bCfg.label}
+              </span>
+              {signal.breakout.direction !== "NONE" && (
+                <span style={{ color: bCfg.color }}>
+                  {signal.breakout.direction === "UP" ? (
+                    <ArrowUp size={12} />
+                  ) : (
+                    <ArrowDown size={12} />
+                  )}
+                </span>
+              )}
+              <p className="text-xs text-muted-foreground leading-tight flex-1">
+                {signal.breakout.reasoning}
+              </p>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
               {signal.reasoning}
             </p>
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function AssetAnalysisPanels({
+  assetId,
+  index,
+}: {
+  assetId: string;
+  index: number;
+}) {
+  const backend = useBackendSafe();
+  const { data: historyJson, isLoading } = useQuery({
+    queryKey: ["history", assetId, 14],
+    queryFn: () => backend!.fetchCoinHistory(assetId, BigInt(14)),
+    staleTime: 300000,
+    enabled: !!backend,
+  });
+
+  const history = useMemo(
+    () => parseCoinHistory(historyJson ?? "{}"),
+    [historyJson],
+  );
+  const signal = useMemo(() => computeSignal(history), [history]);
+
+  if (isLoading) {
+    return (
+      <div
+        className="space-y-4"
+        data-ocid={`bot.signal.loading_state.${index}`}
+      >
+        <Skeleton className="h-24" />
+        <Skeleton className="h-32" />
+      </div>
+    );
+  }
+
+  const { micro, macro, liquidityZones } = signal;
+
+  const structureColor =
+    macro.marketStructure === "UPTREND"
+      ? NEON_CYAN
+      : macro.marketStructure === "DOWNTREND"
+        ? NEON_RED
+        : NEON_YELLOW;
+
+  const rsiColor =
+    micro.rsi > 70 ? NEON_RED : micro.rsi < 30 ? NEON_GREEN : NEON_YELLOW;
+
+  const volatilityColor =
+    macro.volatilityLevel === "HIGH"
+      ? NEON_RED
+      : macro.volatilityLevel === "MEDIUM"
+        ? NEON_YELLOW
+        : NEON_GREEN;
+
+  const volumeRatioColor =
+    micro.volumeRatio > 1.5
+      ? NEON_GREEN
+      : micro.volumeRatio < 0.8
+        ? NEON_RED
+        : NEON_YELLOW;
+
+  const obvColor =
+    micro.obvTrend === "RISING"
+      ? NEON_GREEN
+      : micro.obvTrend === "FALLING"
+        ? NEON_RED
+        : "oklch(0.52 0.03 280)";
+
+  const assetLabel = assetId.charAt(0).toUpperCase() + assetId.slice(1);
+
+  return (
+    <div className="space-y-4">
+      {/* Asset label */}
+      <div className="flex items-center gap-2">
+        <div className="h-px flex-1" style={{ background: `${NEON_CYAN}40` }} />
+        <span className="text-xs font-bold uppercase tracking-widest font-mono rgb-strobe-text">
+          {assetLabel}
+        </span>
+        <div className="h-px flex-1" style={{ background: `${NEON_CYAN}40` }} />
+      </div>
+
+      {/* Micro + Macro row */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        {/* Micro Analysis */}
+        <Card
+          className="border rgb-strobe-border"
+          style={{
+            background: "oklch(0.09 0.015 280 / 0.7)",
+          }}
+          data-ocid="bot.micro.section"
+        >
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Monitor size={11} /> Micro Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* RSI */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  RSI ({micro.rsiSignal})
+                </span>
+                <span
+                  className="text-xs font-bold font-mono"
+                  style={{ color: rsiColor }}
+                >
+                  {micro.rsi}
+                </span>
+              </div>
+              <div
+                className="h-2 rounded-sm overflow-hidden"
+                style={{ background: "oklch(0.14 0.02 280)" }}
+              >
+                <div
+                  className="h-full rounded-sm transition-all"
+                  style={{
+                    width: `${micro.rsi}%`,
+                    background: `linear-gradient(to right, ${rsiColor}88, ${rsiColor})`,
+                    boxShadow: `0 0 6px ${rsiColor}`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Volume Ratio */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Volume Ratio
+              </span>
+              <span
+                className="text-xs font-bold font-mono px-2 py-0.5 rounded"
+                style={{
+                  color: volumeRatioColor,
+                  background: `${volumeRatioColor}22`,
+                  border: `1px solid ${volumeRatioColor}44`,
+                }}
+              >
+                {micro.volumeRatio}x avg
+              </span>
+            </div>
+
+            {/* OBV Trend */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                OBV Trend
+              </span>
+              <span
+                className="text-xs font-bold font-mono uppercase px-2 py-0.5 rounded"
+                style={{
+                  color: obvColor,
+                  background: `${obvColor}22`,
+                  border: `1px solid ${obvColor}44`,
+                  textShadow:
+                    micro.obvTrend !== "FLAT" ? `0 0 6px ${obvColor}` : "none",
+                }}
+              >
+                OBV: {micro.obvTrend}
+              </span>
+            </div>
+
+            {/* Volume spike */}
+            {micro.volumeSpike && (
+              <div
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono"
+                style={{
+                  background: `${NEON_MAGENTA}18`,
+                  border: `1px solid ${NEON_MAGENTA}44`,
+                  color: NEON_MAGENTA,
+                }}
+              >
+                <Zap size={11} />
+                <span className="font-bold">VOLUME SPIKE</span>
+                <span className="text-muted-foreground">
+                  {micro.volumeSpikeMultiplier}x avg
+                </span>
+              </div>
+            )}
+
+            {/* Support levels */}
+            {micro.supportLevels.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Support
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {micro.supportLevels.map((lvl) => (
+                    <span
+                      key={lvl}
+                      className="text-xs font-mono px-1.5 py-0.5 rounded"
+                      style={{
+                        background: `${NEON_GREEN}22`,
+                        color: NEON_GREEN,
+                        border: `1px solid ${NEON_GREEN}44`,
+                      }}
+                    >
+                      $
+                      {lvl.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Resistance levels */}
+            {micro.resistanceLevels.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Resistance
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {micro.resistanceLevels.map((lvl) => (
+                    <span
+                      key={lvl}
+                      className="text-xs font-mono px-1.5 py-0.5 rounded"
+                      style={{
+                        background: `${NEON_RED}22`,
+                        color: NEON_RED,
+                        border: `1px solid ${NEON_RED}44`,
+                      }}
+                    >
+                      $
+                      {lvl.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Macro Analysis */}
+        <Card
+          className="border rgb-strobe-border"
+          style={{
+            background: "oklch(0.09 0.015 280 / 0.7)",
+          }}
+          data-ocid="bot.macro.section"
+        >
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Activity size={11} /> Macro Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Market structure */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Structure
+              </span>
+              <span
+                className="text-xs font-bold font-mono uppercase px-2 py-0.5 rounded"
+                style={{
+                  color: structureColor,
+                  background: `${structureColor}22`,
+                  border: `1px solid ${structureColor}44`,
+                  textShadow: `0 0 6px ${structureColor}`,
+                }}
+              >
+                {macro.marketStructure}
+              </span>
+            </div>
+
+            {/* Momentum */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Momentum
+                </span>
+                <span
+                  className="text-xs font-bold font-mono"
+                  style={{ color: NEON_PURPLE }}
+                >
+                  {macro.momentumScore}/100
+                </span>
+              </div>
+              <div
+                className="h-2 rounded-sm overflow-hidden"
+                style={{ background: "oklch(0.14 0.02 280)" }}
+              >
+                <div
+                  className="h-full rounded-sm"
+                  style={{
+                    width: `${macro.momentumScore}%`,
+                    background: `linear-gradient(to right, ${NEON_PURPLE}88, ${NEON_PURPLE})`,
+                    boxShadow: `0 0 6px ${NEON_PURPLE}`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 14d trend */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                14d Trend
+              </span>
+              <span
+                className="text-xs font-bold font-mono"
+                style={{ color: macro.trend14d >= 0 ? NEON_GREEN : NEON_RED }}
+              >
+                {macro.trend14d >= 0 ? "+" : ""}
+                {macro.trend14d}%
+              </span>
+            </div>
+
+            {/* Volatility */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Volatility
+              </span>
+              <span
+                className="text-xs font-bold font-mono uppercase px-2 py-0.5 rounded"
+                style={{
+                  color: volatilityColor,
+                  background: `${volatilityColor}22`,
+                  border: `1px solid ${volatilityColor}44`,
+                }}
+              >
+                {macro.volatilityLevel}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Liquidity Heatmap */}
+      <Card
+        className="border rgb-strobe-border"
+        style={{
+          background: "oklch(0.09 0.015 280 / 0.7)",
+        }}
+        data-ocid="bot.heatmap.section"
+      >
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+            <Flame size={11} style={{ color: NEON_MAGENTA }} />
+            <span>Liquidity Heatmap</span>
+            <span className="ml-1 text-xs font-mono rgb-strobe-text">
+              {assetLabel}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {liquidityZones.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Insufficient data for heatmap.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Price zones colored by liquidity concentration. Brighter = more
+                activity.
+              </p>
+              <ResponsiveContainer width="100%" height={120}>
+                <BarChart
+                  data={liquidityZones}
+                  margin={{ top: 4, right: 4, left: 4, bottom: 4 }}
+                >
+                  <XAxis
+                    dataKey="label"
+                    tick={{
+                      fontSize: 9,
+                      fill: "oklch(0.52 0.03 280)",
+                      fontFamily: "Geist Mono",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    formatter={(val: number) => [
+                      `${val}% intensity`,
+                      "Liquidity",
+                    ]}
+                    contentStyle={{
+                      background: "oklch(0.09 0.015 280)",
+                      border: "1px solid oklch(0.75 0.24 195 / 0.55)",
+                      fontSize: "11px",
+                      fontFamily: "Geist Mono, monospace",
+                    }}
+                  />
+                  <Bar dataKey="intensity" radius={[2, 2, 0, 0]}>
+                    {liquidityZones.map((zone) => {
+                      const alpha = 0.2 + (zone.intensity / 100) * 0.8;
+                      const color =
+                        zone.type === "bid" ? NEON_CYAN : NEON_MAGENTA;
+                      return (
+                        <Cell
+                          key={zone.price}
+                          fill={color}
+                          fillOpacity={alpha}
+                          style={{
+                            filter:
+                              zone.intensity > 60
+                                ? `drop-shadow(0 0 4px ${color})`
+                                : "none",
+                          }}
+                        />
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block w-2 h-2 rounded-sm"
+                    style={{ background: NEON_CYAN }}
+                  />
+                  Bid zones (below price)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block w-2 h-2 rounded-sm"
+                    style={{ background: NEON_MAGENTA }}
+                  />
+                  Ask zones (above price)
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
