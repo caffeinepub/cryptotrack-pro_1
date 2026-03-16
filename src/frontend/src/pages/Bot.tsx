@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  BarChart2,
   Bot as BotIcon,
   Flame,
   Loader2,
@@ -28,6 +29,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -55,6 +57,244 @@ const NEON_PURPLE = "oklch(0.68 0.28 280)";
 const NEON_RED = "oklch(0.65 0.22 25)";
 const NEON_GREEN = "oklch(0.72 0.2 145)";
 const NEON_YELLOW = "oklch(0.82 0.22 60)";
+
+interface CoinMarketData {
+  id: string;
+  name: string;
+  symbol: string;
+  total_volume: number;
+  price_change_percentage_24h: number;
+  current_price: number;
+}
+
+function VolumeComparisonChart() {
+  const { data, isLoading, isError } = useQuery<CoinMarketData[]>({
+    queryKey: ["volumeComparison"],
+    queryFn: async () => {
+      const res = await fetch(
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum&order=market_cap_desc&per_page=10&page=1",
+      );
+      if (!res.ok) throw new Error("Failed to fetch volume data");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
+  });
+
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    return data.map((coin) => ({
+      name: coin.name,
+      symbol: coin.symbol.toUpperCase(),
+      volumeB: Number((coin.total_volume / 1e9).toFixed(2)),
+      change24h: coin.price_change_percentage_24h,
+      id: coin.id,
+    }));
+  }, [data]);
+
+  const barColors: Record<string, string> = {
+    bitcoin: NEON_CYAN,
+    ethereum: NEON_MAGENTA,
+  };
+
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: {
+      payload: { name: string; volumeB: number; change24h: number };
+    }[];
+  }) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    const changeColor = d.change24h >= 0 ? NEON_GREEN : NEON_RED;
+    return (
+      <div
+        style={{
+          background: "oklch(0.09 0.015 280)",
+          border: `1px solid ${NEON_CYAN}55`,
+          padding: "10px 14px",
+          borderRadius: 4,
+          fontFamily: "Geist Mono, monospace",
+          fontSize: 11,
+          minWidth: 160,
+        }}
+      >
+        <p
+          className="font-bold uppercase tracking-wider mb-1"
+          style={{ color: NEON_CYAN }}
+        >
+          {d.name}
+        </p>
+        <p style={{ color: "oklch(0.72 0.03 280)" }}>
+          Volume:{" "}
+          <span style={{ color: "oklch(0.9 0.02 280)" }}>
+            ${d.volumeB.toFixed(2)}B
+          </span>
+        </p>
+        <p style={{ color: "oklch(0.72 0.03 280)" }}>
+          24h Change:{" "}
+          <span
+            style={{
+              color: changeColor,
+              textShadow: `0 0 6px ${changeColor}`,
+            }}
+          >
+            {d.change24h >= 0 ? "+" : ""}
+            {d.change24h?.toFixed(2)}%
+          </span>
+        </p>
+      </div>
+    );
+  };
+
+  return (
+    <Card
+      data-ocid="bot.volume_chart.section"
+      className="border rgb-strobe-border"
+      style={{ background: "oklch(0.09 0.015 280 / 0.85)" }}
+    >
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+          <BarChart2 size={12} style={{ color: NEON_CYAN }} />
+          <span className="rgb-strobe-text">24H Volume Comparison</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2" data-ocid="bot.volume_chart.loading_state">
+            <Skeleton className="h-[200px] w-full rounded" />
+          </div>
+        ) : isError ? (
+          <div
+            className="flex items-center justify-center h-[200px] text-xs text-muted-foreground"
+            data-ocid="bot.volume_chart.error_state"
+          >
+            <span style={{ color: NEON_RED }}>
+              ⚠ Failed to load volume data
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Real-time 24h trading volume fetched from CoinGecko.
+            </p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 20, right: 20, left: 10, bottom: 4 }}
+                barCategoryGap="40%"
+              >
+                <defs>
+                  {chartData.map((d) => {
+                    const color = barColors[d.id] ?? NEON_CYAN;
+                    return (
+                      <linearGradient
+                        key={d.id}
+                        id={`vol-grad-${d.id}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor={color} stopOpacity={0.9} />
+                        <stop
+                          offset="100%"
+                          stopColor={color}
+                          stopOpacity={0.3}
+                        />
+                      </linearGradient>
+                    );
+                  })}
+                </defs>
+                <XAxis
+                  dataKey="name"
+                  tick={{
+                    fontSize: 11,
+                    fill: "oklch(0.60 0.04 280)",
+                    fontFamily: "Geist Mono, monospace",
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis hide />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ fill: "oklch(0.75 0.24 195 / 0.06)" }}
+                />
+                <Bar dataKey="volumeB" radius={[3, 3, 0, 0]}>
+                  {chartData.map((d) => {
+                    const color = barColors[d.id] ?? NEON_CYAN;
+                    return (
+                      <Cell
+                        key={d.id}
+                        fill={`url(#vol-grad-${d.id})`}
+                        style={{
+                          filter: `drop-shadow(0 0 6px ${color}88)`,
+                        }}
+                      />
+                    );
+                  })}
+                  <LabelList
+                    dataKey="volumeB"
+                    position="top"
+                    formatter={(v: number) => `$${v.toFixed(2)}B`}
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "Geist Mono, monospace",
+                      fill: "oklch(0.85 0.04 280)",
+                    }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* 24h change badges */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {chartData.map((d) => {
+                const color = barColors[d.id] ?? NEON_CYAN;
+                const changeColor = d.change24h >= 0 ? NEON_GREEN : NEON_RED;
+                return (
+                  <div
+                    key={d.id}
+                    className="flex items-center gap-2 text-xs font-mono"
+                  >
+                    <span
+                      className="inline-block w-2 h-2 rounded-sm"
+                      style={{
+                        background: color,
+                        boxShadow: `0 0 4px ${color}`,
+                      }}
+                    />
+                    <span
+                      style={{ color: "oklch(0.65 0.04 280)" }}
+                      className="uppercase"
+                    >
+                      {d.symbol}
+                    </span>
+                    <span
+                      className="px-1.5 py-0.5 rounded text-xs font-bold"
+                      style={{
+                        color: changeColor,
+                        background: `${changeColor}18`,
+                        border: `1px solid ${changeColor}44`,
+                        textShadow: `0 0 5px ${changeColor}`,
+                      }}
+                    >
+                      {d.change24h >= 0 ? "+" : ""}
+                      {d.change24h?.toFixed(2)}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Bot() {
   const backend = useBackendSafe();
@@ -191,6 +431,9 @@ export default function Bot() {
           ))}
         </div>
       </div>
+
+      {/* 24H Volume Comparison Chart */}
+      <VolumeComparisonChart />
 
       {/* Analysis Dashboard Divider */}
       <div className="flex items-center gap-4 py-2">

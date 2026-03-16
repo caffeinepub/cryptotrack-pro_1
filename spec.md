@@ -1,35 +1,25 @@
 # Genesis Trading Bot
 
 ## Current State
-- Bot page uses `parseCoinHistory` which only parses `prices` from CoinGecko history JSON
-- Volume data in `botUtils.ts` is synthesized from price deltas with random noise, not real volume
-- `assessBreakout` and `detectVolumeSpike` use fake volume arrays
-- Theme uses fixed neon magenta and cyan colors throughout
+The Bot page has: signal cards per asset, Analysis Dashboard with micro/macro panels and liquidity heatmap per asset. Live volume data (OBV, volume ratio, volume spike) is fetched via CoinGecko through the backend. RGB neon strobe theme throughout.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Real volume parsing in `parseCoinHistory` — extract `total_volumes` array from CoinGecko response alongside prices
-- Volume OBV (On-Balance Volume) trend metric to `MicroAnalysis`
-- Volume ratio (current vs 30-period average) displayed in micro analysis panel
-- Soft RGB neon strobe CSS animation cycling red → green → blue neon
-- `rgb-strobe` CSS utility class and keyframe animation in index.css
+- A 24h volume comparison chart section on the Bot page, displayed after the active signals and before the analysis dashboard
+- Fetches 24h volume for all target assets (bitcoin, ethereum) from CoinGecko markets endpoint
+- Renders a bar chart comparing 24h volume side-by-side with neon colors matching the cyberpunk theme
+- Shows volume in billions ($B) for readability
+- Shows percentage change in volume vs prior period if available
 
 ### Modify
-- `HistoryPoint` interface: add `volume: number` field
-- `assessBreakout`: use real `history[i].volume` instead of synthetic volumes
-- `computeSignal`: pass real volumes from history to all volume functions
-- `detectVolumeSpike`: use real volumes
-- Bot.tsx neon accent colors: apply strobe animation to borders, headers, badges
-- Volume spike badge: show real multiplier from actual volume data
-- Micro analysis: add OBV trend and volume ratio display
+- Bot.tsx: add a VolumeComparisonChart component and render it between signals and the analysis dashboard divider
 
 ### Remove
-- Random/synthetic volume generation in botUtils.ts
+- Nothing
 
 ## Implementation Plan
-1. Update `HistoryPoint` + `parseCoinHistory` in priceUtils.ts to include volume
-2. Update botUtils.ts to use real volume from history; add OBV calc; remove synthetic volume
-3. Update MicroAnalysis interface to add `obvTrend` and `volumeRatio`
-4. Add RGB strobe keyframe + utility classes in index.css
-5. Update Bot.tsx to apply strobe classes and show new volume metrics
+1. Add a `VolumeComparisonChart` component in Bot.tsx
+2. Fetch 24h volume data from CoinGecko `/coins/markets` endpoint via backend `httpGet` or use available backend calls
+3. Render a BarChart with recharts using neon cyberpunk styling
+4. Place the chart between the Active Signals section and the Analysis Dashboard divider
